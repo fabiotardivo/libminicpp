@@ -14,14 +14,15 @@
  */
 
 #include "trail.hpp"
-#include <assert.h>
+#include <cassert>
+#include <cstdlib>
 
 #define TSIZE (1 << 20)
 
 Trailer::Trailer()
     : _magic(-1)
 {
-   _block = (char*)malloc(TSIZE);
+   _block = (char*) malloc(TSIZE);
    _bsz = TSIZE;
    _btop = 0;
    _lastNode = 0;
