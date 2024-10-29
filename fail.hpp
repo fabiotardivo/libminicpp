@@ -17,7 +17,7 @@
 #define __FAIL_H
 
 #ifdef  __MINGW64__
-    #define SETJMP(x) setjmp(x)
+    #define SETJUMP(x) setjmp(x)
     #define LONGJMP(x,y) longjmp(x,y)
 #else
     #define SETJUMP(x) _setjmp(x)

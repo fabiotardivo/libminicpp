@@ -11,9 +11,6 @@ set(LIBMINICPP_SRC
     acstr.cpp
     bitset.cpp
     constraint.cpp
-    cont.cpp
-    context.cpp
-    controller.cpp
     domain.cpp
     domain.cpp
     fail.cpp
