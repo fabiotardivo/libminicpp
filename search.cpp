@@ -18,9 +18,17 @@
 #include "constraint.hpp"
 #include <string>
 #include <inttypes.h>
-#include <vector>
+
+
+std::mt19937 rng(std::random_device{}());
+
+std::mt19937& getRNG()
+{
+    return rng;
+}
 
 class StopException {};
+class FailLimitException {};
 
 typedef std::function<void(void)> VVFun;
 
@@ -33,6 +41,19 @@ SearchStatistics DFSearch::solve(SearchStatistics& stats,Limit limit)
                                } catch(StopException& sx) {}
                             }));
     return stats;
+}
+
+void DFSearch::sample(bool & stop)
+{
+    _sm->withNewState(VVFun([this,&stop]()
+        {
+            while (not stop)
+            {
+                _sm->saveState();
+                dfs_one_shot();
+                _sm->restoreState();
+            }
+        }));
 }
 
 SearchStatistics DFSearch::solve(SearchStatistics& stats)
@@ -132,5 +153,28 @@ void DFSearch::dfs(SearchStatistics& stats,const Limit& limit)
         {
             throw StopException();
         }
+    }
+}
+
+
+void DFSearch::dfs_one_shot()
+{
+    Branches branches = _branching();
+    if (branches.size() == 0)
+    {
+        notifyFailure();
+    }
+    else
+    {
+        _depth += 1;
+        _peakDepth = std::max(_depth.value(),_peakDepth);
+        notifyNode();
+        auto cur = branches.begin();
+        TRYFAIL
+                (*cur)();
+                dfs_one_shot();
+        ONFAIL
+                notifyFailure();
+        ENDFAIL
     }
 }

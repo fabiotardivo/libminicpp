@@ -24,10 +24,13 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <random>
 
 #include "solver.hpp"
 #include "constraint.hpp"
 #include "RuntimeMonitor.hpp"
+
+std::mt19937 & getRNG();
 
 class Branches {
    std::vector<std::function<void(void)>> _alts;
@@ -110,6 +113,8 @@ class DFSearch {
     trail<int> _depth;
     int _peakDepth = 0;
     void dfs(SearchStatistics& stats,const Limit& limit);
+    void dfs_one_shot();
+
 public:
    DFSearch(CPSolver::Ptr cp,std::function<Branches(void)>&& b)
       : _sm(cp->getStateManager()),_branching(std::move(b)), _depth(cp->getStateManager(),0) {
@@ -126,7 +131,8 @@ public:
    void notifyNode()  { for_each(_nodeListeners.begin(), _nodeListeners.end(), [](std::function<void(void)>& c) { c();});}
    void notifyFailure()  { for_each(_failureListeners.begin(),_failureListeners.end(),[](std::function<void(void)>& c) { c();});}
    int getPeakDepth()const  {return  _peakDepth;};
-   SearchStatistics solve(SearchStatistics& stat,Limit limit);
+   SearchStatistics solve(SearchStatistics& stat, Limit limit);
+   void sample(bool & stop);
    SearchStatistics solve(SearchStatistics& stat);
    SearchStatistics solve(Limit limit);
    SearchStatistics solve();
@@ -147,9 +153,9 @@ std::function<Branches(void)> land(std::initializer_list<B> allB) {
 template<class B>
 std::function<Branches(void)> land(std::vector<B> vec)
 {
-    return [vec]()
+    return [vec] ()
     {
-        for(size_t i = 0; i < vec.size(); i += 1)
+        for (size_t i = 0; i < vec.size(); i += 1)
         {
             auto br = vec[i]();
             if (br.size() != 0)
@@ -182,6 +188,29 @@ typename Container::value_type selectMin(Container& c,Predicate test, Fun f)
       return typename Container::value_type();
    else 
       return *min;
+}
+
+template<class Container>
+typename Container::value_type selectRandom(Container& c)
+{
+    std::vector<typename Container::value_type> candidates;
+
+    for (const auto & var : c)
+    {
+        if (var->size() > 1)
+        {
+            candidates.push_back(var);
+        }
+    }
+
+    if (candidates.empty())
+    {
+        return typename Container::value_type();
+    }
+
+    std::uniform_int_distribution<> dis(0, candidates.size() - 1);
+
+    return candidates[dis(getRNG())];
 }
 
 template <class Container> std::function<Branches(void)> firstFail(CPSolver::Ptr cp,Container& c) {
@@ -217,6 +246,12 @@ typename Container::value_type selectMax(Container& c,Predicate test, Fun f)
         return typename Container::value_type();
     else
         return *max;
+}
+
+template<class Vars, class Var, typename Idx>
+Var input_index(Vars const & vars, Idx vIdx)
+{
+    return vIdx >= 0 ? vars[vIdx] : Var();
 }
 
 template<class Vars, class Var>
@@ -263,6 +298,11 @@ Var largest(Vars const & vars)
     );
 }
 
+template<class Vars, class Var>
+Var random(Vars const & vars)
+{
+    return selectRandom(vars);
+}
 
 // Values selections
 template<class Var>
@@ -273,6 +313,23 @@ Branches indomain_min(CPSolver::Ptr cp, Var var)
     if (var)
     {
         auto val = var->min();
+        return [cp,var,val] { TRACE(std::cout << "%% Choosing x" << var->getId() << " == "<< val << std::endl;) return cp->post(var == val);} |
+               [cp,var,val] { TRACE(std::cout << "%% Choosing x" << var->getId() << " != "<< val << std::endl;) return cp->post(var != val);};
+    }
+    else
+    {
+        return Branches({});
+    }
+}
+
+// Values selections
+template<class Var, typename Val>
+Branches indomain_fixed(CPSolver::Ptr cp, Var var, Val val)
+{
+    using namespace Factory;
+
+    if (var)
+    {
         return [cp,var,val] { TRACE(std::cout << "%% Choosing x" << var->getId() << " == "<< val << std::endl;) return cp->post(var == val);} |
                [cp,var,val] { TRACE(std::cout << "%% Choosing x" << var->getId() << " != "<< val << std::endl;) return cp->post(var != val);};
     }
@@ -300,54 +357,19 @@ Branches indomain_max(CPSolver::Ptr cp, Var var)
 }
 
 template <class Var>
-Branches random(CPSolver::Ptr cp, Var var)
+Branches indomain_random(CPSolver::Ptr cp, Var var)
 {
     using namespace Factory;
 
     if (var)
     {
-        auto b = Branches({});
-        for (auto i  = 0; i < 3; i += 1)
-        {
-            b.add([cp,var] {
-                auto var_size = var->size();
-                int val_pos = rand() % var->size() + 1;
-                auto val = var->getIthVal(val_pos);
-                return cp->post(var == val);}
-            );
-        };
-        return b;
+        std::uniform_int_distribution<> dis(1, var->size());
+        auto val_pos = dis(getRNG()); // 1-based
+        auto val = var->getIthVal(val_pos);
+        return [cp,var,val] { TRACE(std::cerr << "%% Randomly choosing  x" << var->getId() << " == "<< val << std::endl <<std::flush;) return cp->post(var == val);} |
+               [cp,var,val] { TRACE(std::cerr << "%% Randomly choosing  x" << var->getId() << " != "<< val << std::endl;) return cp->post(var != val);};
     }
-    else
-    {
-        return Branches({});
-    }
-}
-
-template <class Var>
-Branches lin_decr(CPSolver::Ptr cp, Var var)
-{
-    using namespace Factory;
-
-    if (var)
-    {
-        auto b = Branches({});
-        for (auto i  = 0; i < 3; i += 1)
-        {
-            b.add([cp,var] {
-                float uniform_random01 = ((float) rand()) / (float) RAND_MAX;
-                float lin_dec_sample = sqrt(1 - uniform_random01);
-                int val_pos = round(lin_dec_sample * var->size()) + 1;
-                auto val = var->getIthVal(val_pos);
-                return cp->post(var == val);}
-            );
-        };
-        return b;
-    }
-    else
-    {
-        return Branches({});
-    }
+    return Branches({});
 }
 
 template <class Var>
