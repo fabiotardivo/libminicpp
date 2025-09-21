@@ -1,10 +1,9 @@
-cmake_minimum_required(VERSION 3.22)
-project(libminicpp)
+cmake_minimum_required(VERSION 3.28)
+project(libminicpp CXX)
 
 # C++
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-enable_language(CXX)
 
 # Sources
 set(LIBMINICPP_SRC
@@ -31,15 +30,10 @@ set(LIBMINICPP_SRC
 # Library
 add_library(libminicpp ${LIBMINICPP_SRC})
 set_target_properties(libminicpp PROPERTIES PREFIX "")
-
-# Includes
-if(PROJECT_IS_TOP_LEVEL)
-    target_include_directories(libminicpp PRIVATE ${PROJECT_SOURCE_DIR})
-else()
-    cmake_path(GET PROJECT_SOURCE_DIR PARENT_PATH PROJECT_PARENT_DIR)
-    target_include_directories(libminicpp INTERFACE ${PROJECT_PARENT_DIR})
-endif()
+target_include_directories(libminicpp PUBLIC ${PROJECT_SOURCE_DIR})
 
 # Demo
-add_executable(minicpp-demo EXCLUDE_FROM_ALL Demo.cpp)
-target_link_libraries(minicpp-demo libminicpp)
+if(PROJECT_IS_TOP_LEVEL)
+    add_executable(minicpp-nqueens Demo.cpp)
+    target_link_libraries(minicpp-nqueens PRIVATE libminicpp)
+endif()
