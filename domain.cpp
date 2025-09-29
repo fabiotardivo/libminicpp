@@ -12,7 +12,7 @@
  *
  * Copyright (c)  2018. by Laurent Michel, Pierre Schaus, Pascal Van Hentenryck
  */
-
+#include <cstdint>
 #include "domain.hpp"
 #include "fail.hpp"
 #include "mathUtils.h"
@@ -334,50 +334,54 @@ void BitDomain::dump(int min, int max, unsigned int * dump) const
     }
 }
 
-int BitDomain::getIthVal(int index) const
+int BitDomain:: getIthVal(int index) const
 {
-    int min_offset = _min - _imin;
-    int min_word_idx = min_offset / 32;
-    int min_bit_idx = min_offset % 32;
-    unsigned int min_word_mask = getRightFilledMask32(min_bit_idx);
-
-    int max_offset = _max - _imin;
-    int max_word_idx = max_offset / 32;
-    int max_bit_idx = max_offset % 32;
-    unsigned int max_word_mask = getLeftFilledMask32(max_bit_idx);
+    int min_dom_offset = _min - _imin;
+    int min_dom_word_idx = min_dom_offset / 32;
+    int min_dom_bit_idx = min_dom_offset % 32;
+    unsigned int min_word_mask = getRightFilledMask32(min_dom_bit_idx);
+    int max_dom_offset = _max - _imin;
+    int max_dom_word_idx = max_dom_offset / 32;
+    int max_dom_bit_idx = max_dom_offset % 32;
+    unsigned int max_word_mask = getLeftFilledMask32(max_dom_bit_idx);
 
     int bit_count = 0;
-    int bit_idx = 0;
-    int word_idx = min_word_idx;
-    for(; word_idx <= max_word_idx; word_idx += 1)
+    int word_idx = min_dom_word_idx;
+    for(; word_idx <= max_dom_word_idx; word_idx += 1)
     {
-        int current_word = _dom[word_idx];
+        unsigned int current_word = _dom[word_idx];
 
-        if (word_idx == min_word_idx)
+        if (word_idx == min_dom_word_idx)
         {
             current_word &= min_word_mask;
         }
 
-        if (word_idx == max_word_idx)
+        if (word_idx == max_dom_word_idx)
         {
             current_word &= max_word_mask;
         }
 
-        if (bit_count + getPopCount(current_word) >= index)
+        int word_bit_count = getPopCount(current_word);
+        if (bit_count + word_bit_count < index)
         {
-            for (; bit_idx < 32; bit_idx += 1)
+            bit_count += word_bit_count;
+        }
+        else
+        {
+            for (int bit_idx = 0; bit_idx < 32; bit_idx += 1)
             {
-                bit_count += getPopCount(current_word & getMask32(bit_idx));
+                bool isZero = (current_word & getMask32(bit_idx)) == 0;
+                bit_count += not isZero;
                 if (bit_count == index)
                 {
-                    break;
+                    return _imin + word_idx * 32 + bit_idx;
                 }
             }
-            break;
         }
+
     }
 
-    return _imin + word_idx * 32 + bit_idx;
+    return INT32_MAX;
 }
 
 
