@@ -218,7 +218,7 @@ template <>
 class var<bool> : public IntVarImpl {
 public:
     typedef handle_ptr<var<bool>> Ptr;
-    var<bool>(CPSolver::Ptr& cps) : IntVarImpl(cps,0,1) {}
+    var(CPSolver::Ptr& cps) : IntVarImpl(cps,0,1) {}
     bool isTrue() const { return min()==1;}
     bool isFalse() const { return max()==0;}
 #if defined(__clang__)
