@@ -626,19 +626,53 @@ void AllDifferentBinary::post()
          cp->post(new (cp) NEQBinBCLight(_x[i],_x[j]));    
 }
 
-void AllDifferentAC::post()
+void AllDifferentAC::init()
 {
     CPSolver::Ptr cp = _x[0]->getSolver();
     _nVar    = (int)_x.size();
     _nVal    = updateRange();
     _mm.setup();
-    for(int i=0;i < _nVar;i++)
-        _x[i]->propagateOnDomainChange(this);
     _match   = new (cp) int[_nVar];
     _varFor  = new (cp) int[_nVal];
     _nNodes  = _nVar + _nVal + 1;
     _rg = new (cp) PGraph(_nVar,_minVal,_maxVal,_match,_varFor,_x.data());
-    propagate();
+    nSCCs = 0;
+    bufferSCCs = new (cp) int[_nNodes];
+}
+
+int AllDifferentAC::calcMM()
+{
+   return _mm.compute(_match);
+}
+
+void AllDifferentAC::calcSCCs()
+{
+    updateRange();
+    _rg->setLiveValues(_minVal,_maxVal);
+
+    for(int i=0;i < _nVal;++i) _varFor[i] = -1;
+    for(int i=0;i < _nVar;++i) _varFor[_match[i] - _minVal] = i;
+
+    //std::cout << "DD:" << _nbd << "    " << _nbmd << "   " << _nVar << "/" << (_maxVal - _minVal + 1) << "\n";
+
+    nSCCs = 0;
+    auto fun = [this](int n,int nd[]) {
+        for(int i=0;i < n;i++)
+            bufferSCCs[nd[i]] = nSCCs;
+        ++nSCCs;
+    };
+    _rg->SCC(fun);
+}
+
+void AllDifferentAC::filterDomains()
+{
+    Factory::Veci::pointer x = _x.data();
+    for(int i=0;i < _nVar;i++) {
+        const int ub = x[i]->max();
+        for(int v = x[i]->min(); v <= ub;++v)
+            if (_match[i] != v && bufferSCCs[i] != bufferSCCs[valNode(v)] && x[i]->containsBase(v))
+                x[i]->remove(v);
+    }
 }
 
 int AllDifferentAC::updateRange()
@@ -653,35 +687,22 @@ int AllDifferentAC::updateRange()
     return _maxVal - _minVal + 1;
 }
 
+void AllDifferentAC::post()
+{
+    init();
+    for(int i=0;i < _nVar;i++)
+        _x[i]->propagateOnDomainChange(this);
+    propagate();
+}
+
 void AllDifferentAC::propagate()
 {
-    int size = _mm.compute(_match);
-    if (size < _nVar)
+    int const matchSize = calcMM();
+    if (matchSize < _nVar)
         failNow();
-    updateRange();
-    _rg->setLiveValues(_minVal,_maxVal);
-
-    for(int i=0;i < _nVal;++i) _varFor[i] = -1;
-    for(int i=0;i < _nVar;++i) _varFor[_match[i] - _minVal] = i;
-
-    //std::cout << "DD:" << _nbd << "    " << _nbmd << "   " << _nVar << "/" << (_maxVal - _minVal + 1) << "\n";
-
-    int nc = 0;
-    int* scc = (int*)alloca(sizeof(int)*_nNodes);
-    _rg->SCC([&scc,&nc](int n,int nd[]) {
-        for(int i=0;i < n;i++)
-            scc[nd[i]] = nc;
-        ++nc;
-    });
-    if (nc > 1) {
-        Factory::Veci::pointer x = _x.data();
-        for(int i=0;i < _nVar;i++) {
-            const int ub = x[i]->max();
-            for(int v = x[i]->min(); v <= ub;++v)
-                if (_match[i] != v && scc[i] != scc[valNode(v)] && x[i]->containsBase(v))
-                    x[i]->remove(v);
-        }
-    }
+    calcSCCs();
+    if (nSCCs > 1)
+        filterDomains();
 }
 
 void Circuit::setup(CPSolver::Ptr cp)

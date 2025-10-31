@@ -244,14 +244,21 @@ public:
 };
 
 class AllDifferentAC : public Constraint {
+    protected:
         Factory::Veci    _x;
         MaximumMatching _mm;
         PGraph*         _rg;
         int* _match,*_varFor;
         int _minVal,_maxVal;
         int _nVar,_nVal,_nNodes;
+        int nSCCs;
+        int * bufferSCCs;
         int updateRange();
         int valNode(int vid) const noexcept { return vid - _minVal + _nVar;}
+        void init();
+        int calcMM();
+        void calcSCCs();
+        void filterDomains();
     public:
         template <class Vec> AllDifferentAC(const Vec& x)
                 : Constraint(x[0]->getSolver()),
