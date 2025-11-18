@@ -22,6 +22,8 @@
 #include "handle.hpp"
 #include "store.hpp"
 #include <vector>
+#include <cmath>
+
 
 class StaticBitSet {
    std::vector<int>            _words;
@@ -35,23 +37,34 @@ public:
    bool contains(int pos);
 };
 
+
 class SparseBitSet {
-   std::vector<trail<int>>     _words;  // length = nbWords
-   std::vector<int>            _index;  // length = nbWords
-   std::vector<int>            _mask;   // length = nbWords
-   trail<int>                  _limit;
+   
    int                         _sz;
    int                         _nbWords;
+   void printBits(unsigned int num);
+   
 public:
+   std::vector<int>            _mask;   // length = nbWords
+   std::vector<int>            _index;  // length = nbWords
+   trail<int>                  _limit;  //can be put private again
+   std::vector<trail<int>>     _words;  // length = nbWords, DO NOT MOFIY DIRECTLY
    SparseBitSet(Trailer::Ptr eng, Storage::Ptr store, int sz);
    bool isEmpty() { return _limit == -1;}
    void clearMask();
    void reverseMask();
    void addToMask(StaticBitSet& m);
+   void addToMaskVector(const std::vector<trail<int>> &v);
+   void addToMaskArray(unsigned int* v);
+   void addToMaskInt(unsigned int value);
    void intersectWithMask();
    int intersectIndex(StaticBitSet& m);
+   int intersectIndexSparse(SparseBitSet& m) ;
    trail<int>& operator[] (int i) { return _words[i];}
    int operator[] (int i) const { return _words[i].value();}
+   int countOnes(); //"size"
+   int getIthBit(int index);
 };
+
 
 #endif

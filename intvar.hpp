@@ -28,6 +28,7 @@
 #include "domain.hpp"
 #include "trailList.hpp"
 #include "matrix.hpp"
+#include "bitset.hpp"
 
 class IntVarImpl : public var<int> {
    CPSolver::Ptr           _solver;
@@ -53,11 +54,17 @@ public:
    int min() const override { return _dom->min();}
    int max() const override { return _dom->max();}
    int size() const override { return _dom->size();}
+   int intialSize() const override { return _dom->initialSize();}
+   int initialMin() const override { return _dom->initialMin();}
+   int initialMax() const override { return _dom->initialMax();}
    bool isBound() const override { return _dom->isBound();}
    bool contains(int v) const override { return _dom->member(v);}
    bool containsBase(int v) const override { return _dom->memberBase(v);}
    int getIthVal(int index) const noexcept {assert(0 < index and index <= _dom->size()); return _dom->getIthVal(index);}
    void dump(int min, int max, unsigned int * dump) const override { _dom->dump(min,max,dump);};
+   void dumpWithOffset(int min, int max, unsigned int * dump,int offset) const {return  _dom->dumpWithOffset(min, max,dump,offset);};
+   std::vector<int> dumpDomainToVec(){return _dom->dumpToVecOfInts();}
+   const int getSizeOfBitSet() override { return _dom->getNoWords();}
    bool changed() const noexcept override  { return _dom->changed();}
    bool changedMin() const noexcept override  { return _dom->changedMin();}
    bool changedMax() const noexcept override  { return _dom->changedMax();}
@@ -93,6 +100,9 @@ public:
    int min() const  override { return - _x->max();}
    int max() const  override { return - _x->min();}
    int size() const override { return _x->size();}
+   int intialSize() const override { return 0;}
+   int initialMin() const override { return 0;}
+   int initialMax() const override { return 0;}
    bool isBound() const override { return _x->isBound();}
    bool contains(int v) const override { return _x->contains(-v);}
    bool changed() const noexcept override  { return _x->changed();}
@@ -140,6 +150,9 @@ public:
    int min() const  override { return _a * _x->min();}
    int max() const  override { return _a * _x->max();}
    int size() const override { return _x->size();}
+   int intialSize() const override { return 0;}
+   int initialMin() const override { return 0;}
+   int initialMax() const override { return 0;}
    bool isBound() const override { return _x->isBound();}
    bool contains(int v) const override { return (v % _a != 0) ? false : _x->contains(v / _a);}
    bool changed() const noexcept override  { return _x->changed();}
@@ -183,6 +196,9 @@ public:
    int min() const  override { return _o + _x->min();}
    int max() const  override { return _o + _x->max();}
    int size() const override { return _x->size();}
+   int intialSize() const override { return 0;}
+   int initialMin() const override { return 0;}
+   int initialMax() const override { return 0;}
    bool isBound() const override { return _x->isBound();}
    bool contains(int v) const override { return _x->contains(v - _o);}
    bool changed() const noexcept override  { return _x->changed();}
