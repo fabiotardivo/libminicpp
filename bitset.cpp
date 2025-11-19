@@ -17,6 +17,10 @@
 
 #include "bitset.hpp"
 
+using namespace std;
+using std::vector;
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
 StaticBitSet::StaticBitSet(int sz)
    : _sz(sz)
 {
@@ -103,4 +107,70 @@ int SparseBitSet::intersectIndex(StaticBitSet& m) {
          return offset;
    }
    return -1;
+}
+
+
+
+
+int SparseBitSet::intersectIndexSparse(SparseBitSet& m) {
+
+   int offset;
+   for (int i = 0; i <= _limit; i++) {
+      offset = _index[i];
+      if ((_words[offset] & m[offset].value()) != 0)
+         return offset;
+   }
+   return -1;
+}
+
+void SparseBitSet::addToMaskVector(const vector<trail<int>> &v){
+   int offset;
+   for (int i = 0; i <= _limit; i++) {
+      offset = _index[i];
+      _mask[offset] = (_mask[offset] | v[offset].value());
+   }
+
+}
+void SparseBitSet::addToMaskArray(unsigned int* v){
+   int offset;
+   for (int i = 0; i <= _limit; i++) {
+      offset = _index[i];
+      _mask[offset] = (_mask[offset] | v[offset]);
+   }
+
+}
+
+void SparseBitSet::addToMaskInt(unsigned int value){  
+	int offset;
+   int bitsPerWord=32;
+	unsigned int wordToOr=(unsigned int) 1<<(bitsPerWord-(value%bitsPerWord));
+   
+	int wordIndex=floor(value/bitsPerWord);
+	if(value%bitsPerWord==0){
+		wordIndex--;
+	}
+	offset=_index[wordIndex];
+	_mask[offset]=_mask[offset] | wordToOr;
+}
+
+
+int SparseBitSet::countOnes(){
+   
+   int count=0;
+   for (int i = 0; i <= _nbWords; i++) {
+      count+=__builtin_popcount(_words[i].value());
+   }
+   return count;
+
+}
+//to fix (optimize a lot)
+int SparseBitSet::getIthBit(int index){
+   
+   int wordIndex=(index/32);
+   int bitIndex=index%32;
+   printf("%%%%%% wordIndex: %d, bitIndex: %d, _words[wordIndex]: %d, mask: %d\n",wordIndex,bitIndex,_words[wordIndex].value(),1<<(31-bitIndex));
+   if(_words[wordIndex].value() & (1<<(31-bitIndex))){
+      return 1;
+   }
+   return 0;
 }
