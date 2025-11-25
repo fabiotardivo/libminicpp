@@ -334,6 +334,114 @@ void BitDomain::dump(int min, int max, unsigned int * dump) const
     }
 }
 
+
+
+void BitDomain::dumpWithOffset(int min, int max, unsigned int * dump,int offset) const
+{
+    assert(min <= _min);
+    assert(_max <= max);
+
+
+    int min_dom_offset = _min - _imin;
+    int min_dom_word_idx = min_dom_offset / 32;
+    int min_dom_bit_idx = min_dom_offset % 32;
+    unsigned int min_word_mask = getRightFilledMask32(min_dom_bit_idx);
+    int max_dom_offset = _max - _imin;
+    int max_dom_word_idx = max_dom_offset / 32;
+    int max_dom_bit_idx = max_dom_offset % 32;
+    unsigned int max_word_mask = getLeftFilledMask32(max_dom_bit_idx);
+    unsigned int mask;
+
+    if(offset > min_dom_bit_idx){ //shift to the right
+        offset = offset - min_dom_bit_idx;
+
+        //offset can't be 0
+        unsigned int maskR= getRightFilledMask32(31-offset);
+        if(min_dom_word_idx==max_dom_word_idx){
+            mask = min_word_mask & max_word_mask;
+            dump[0] = ((_dom[min_dom_word_idx].value() & mask)>> offset) | (dump[0] & ~(mask >> offset));
+            mask = min_word_mask & max_word_mask & maskR;
+            dump[1] = (_dom[min_dom_word_idx].value() & mask) << (32-offset) | (dump[1] & ~(mask << (32-offset)));
+        }else{
+            dump[0]= ((_dom[min_dom_word_idx] & min_word_mask) >> offset) | (dump[0] & ~(min_word_mask >> offset));
+            int i=1;
+            unsigned int prevWord = (_dom[min_dom_word_idx].value() & min_word_mask & maskR) << (32-offset);
+
+            for(int dom_word_idx = min_dom_word_idx+1; dom_word_idx < max_dom_word_idx; dom_word_idx += 1)
+            {
+                dump[i]= prevWord | ((_dom[dom_word_idx].value()) >> offset);
+                prevWord = (_dom[dom_word_idx].value() & maskR) << (32-offset);
+                i++;
+            }
+
+            mask = max_word_mask & maskR;
+            dump[i]= prevWord | ((_dom[max_dom_word_idx].value() & max_word_mask) >> offset) | (dump[i] & (~max_word_mask >> offset));
+            prevWord = (_dom[max_dom_word_idx].value() & mask) << (32-offset);
+
+            i++;
+
+            if(prevWord != 0){
+                dump[i]= prevWord  | (dump[i] & ~(mask << (32-offset)));
+            }
+        }
+
+    }else if(offset==min_dom_bit_idx){ //no shift
+        if(min_dom_word_idx==max_dom_word_idx){
+            mask = min_word_mask & max_word_mask;
+            dump[0]=(_dom[min_dom_word_idx] & mask) | (dump[0] & ~mask);
+        }else{
+            dump[0]=(_dom[min_dom_word_idx].value()& min_word_mask) | (dump[0] & ~min_word_mask);
+            int i=1;
+
+            for(int dom_word_idx = min_dom_word_idx+1; dom_word_idx < max_dom_word_idx; dom_word_idx += 1)
+            {
+                dump[i]= (_dom[dom_word_idx].value());
+                i++;
+            }
+            dump[i]=(_dom[max_dom_word_idx].value()& max_word_mask) | (dump[i] & ~max_word_mask);
+        }
+
+    }else{ //offset<min_dom_bit_idx, shift left
+        offset= min_dom_bit_idx - offset;
+
+        unsigned int maskL= getLeftFilledMask32(offset);
+
+        //here offset is >0 <=31
+        if(min_dom_word_idx==max_dom_word_idx){
+            mask = min_word_mask & max_word_mask;
+            dump[0] = ((_dom[min_dom_word_idx].value() & mask)<< offset) | (dump[0] & ~(mask << offset));
+            mask = min_word_mask & max_word_mask & maskL;
+            dump[1] = (_dom[min_dom_word_idx].value() & mask) >> (32-offset) | (dump[1] & ~(mask >> (32-offset)));
+        }else{
+            int i=1;
+
+            int succW;
+            if(min_dom_word_idx+1==max_dom_word_idx){
+                succW=(_dom[min_dom_word_idx+1].value() & maskL & max_word_mask) >> (32-offset);
+                mask = (maskL & max_word_mask) >> (32-offset) | min_word_mask << offset;
+            }else{
+                succW=(_dom[min_dom_word_idx+1].value() & maskL) >> (32-offset);
+                mask = maskL >> (32-offset) | min_word_mask << offset;
+            }
+
+            dump[0]= succW | ((_dom[min_dom_word_idx] & min_word_mask) << offset) | (dump[0] & ~mask);
+            for(int dom_word_idx = min_dom_word_idx+1; dom_word_idx < max_dom_word_idx-1; dom_word_idx += 1)
+            {
+                succW=(_dom[dom_word_idx+1].value() &maskL) >> (32-offset);
+                dump[i]= succW | ((_dom[dom_word_idx].value()) << offset);
+                i++;
+            }
+            if(min_dom_word_idx+1!=max_dom_word_idx){
+                mask = max_word_mask & maskL;
+                succW=(_dom[max_dom_word_idx].value() & mask) >> (32-offset);
+                dump[i]= succW | ((_dom[max_dom_word_idx-1].value()) << offset) | (dump[i] & (~mask >> (32-offset)));
+                i++;
+            }
+            dump[i]=((_dom[max_dom_word_idx].value() & max_word_mask) << offset) | (dump[i] & ~(max_word_mask << offset));
+        }
+    }
+}
+
 int BitDomain:: getIthVal(int index) const
 {
     int min_dom_offset = _min - _imin;
