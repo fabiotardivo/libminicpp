@@ -20,10 +20,16 @@
 #include <inttypes.h>
 
 
-std::mt19937 rng(std::random_device{}());
 
-std::mt19937& getRNG()
+std::mt19937& getVarRng()
 {
+    thread_local std::mt19937 rng(std::random_device{}());
+    return rng;
+}
+
+std::mt19937& getValRng()
+{
+    thread_local std::mt19937 rng(std::random_device{}());
     return rng;
 }
 

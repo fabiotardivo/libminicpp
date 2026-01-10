@@ -30,7 +30,8 @@
 #include "constraint.hpp"
 #include "RuntimeMonitor.hpp"
 
-std::mt19937 & getRNG();
+std::mt19937& getVarRng();
+std::mt19937& getValRng();
 
 class Branches {
    std::vector<std::function<void(void)>> _alts;
@@ -210,7 +211,7 @@ typename Container::value_type selectRandom(Container& c)
 
     std::uniform_int_distribution<> dis(0, candidates.size() - 1);
 
-    return candidates[dis(getRNG())];
+    return candidates[dis(getVarRng())];
 }
 
 template <class Container> std::function<Branches(void)> firstFail(CPSolver::Ptr cp,Container& c) {
@@ -364,7 +365,7 @@ Branches indomain_random(CPSolver::Ptr cp, Var var)
     if (var)
     {
         std::uniform_int_distribution<> dis(1, var->size());
-        auto val_pos = dis(getRNG()); // 1-based
+        auto val_pos = dis(getValRng()); // 1-based
         auto val = var->getIthVal(val_pos);
         return [cp,var,val] { TRACE(std::cerr << "%% Randomly choosing  x" << var->getId() << " == "<< val << std::endl <<std::flush;) return cp->post(var == val);} |
                [cp,var,val] { TRACE(std::cerr << "%% Randomly choosing  x" << var->getId() << " != "<< val << std::endl;) return cp->post(var != val);};
