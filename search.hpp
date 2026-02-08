@@ -391,7 +391,7 @@ Branches indomain_split(CPSolver::Ptr cp, Var var)
 }
 
 template <class Var>
-Branches indomain_list(CPSolver::Ptr cp, Var var, std::vector<Var> const & vals)
+Branches indomain_list(CPSolver::Ptr cp, Var var, std::vector<int> const & vals)
 {
     using namespace Factory;
 
