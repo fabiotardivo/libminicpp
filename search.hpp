@@ -408,5 +408,31 @@ Branches indomain_list(CPSolver::Ptr cp, Var var, std::vector<int> const & vals)
     return Branches({});
 }
 
+template <class Var>
+Branches indomain(CPSolver::Ptr cp, Var var)
+{
+    using namespace Factory;
+
+    if (var)
+    {
+        std::vector<std::function<void(void)>> branches;
+        std::vector<int> vals;
+        for (int val = var->min(); val < var->max(); ++val)
+        {
+            if (var->contains(val))
+            {
+                vals.push_back(val);
+            }
+        }
+        branches.reserve(vals.size());
+        for (auto const & val : vals)
+        {
+            branches.emplace_back([cp,var,val] { TRACE(std::cerr << "%% Choosing  x" << var->getId() << " == "<< val << std::endl <<std::flush;) return cp->post(var == val);});
+        }
+        return Branches(branches);
+    }
+    return Branches({});
+}
+
 
 #endif
