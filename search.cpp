@@ -57,6 +57,8 @@ void DFSearch::sample(bool & stop, Limit limit)
     while (not stop)
     {
         stats = SearchStatistics();
+        std::cerr << "DEBUG: failures at start = " << stats.getFailures()
+                 << " limit=" << limit(stats) << std::endl;
         _sm->withNewState(VVFun([this, &stats, &limit]()
         {
             try {
