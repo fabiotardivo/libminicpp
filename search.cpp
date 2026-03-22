@@ -57,12 +57,12 @@ void DFSearch::sample(bool & stop, Limit limit)
     while (not stop)
     {
         stats = SearchStatistics();
-        _sm->withNewState([this, &stats, &limit]()
+        _sm->withNewState(VVFun([this, &stats, &limit]()
         {
             try {
                 dfs_record(stats, limit);
             } catch(StopException&) {}
-        });
+        }));
     }
 }
 
