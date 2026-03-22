@@ -162,7 +162,7 @@ void DFSearch::dfs(SearchStatistics& stats,const Limit& limit)
     }
 }
 
-void DFSearch::dfs_record(SearchStatistics& stats,const Limit& limit)
+void DFSearch::dfs_record(SearchStatistics& stats,const Limit& limit, int maxNodeFailures)
 {
     Branches branches = _branching();
     if (branches.size() == 0)
@@ -173,14 +173,18 @@ void DFSearch::dfs_record(SearchStatistics& stats,const Limit& limit)
     {
         _depth += 1;
         _peakDepth = std::max(_depth.value(),_peakDepth);
-        for (auto cur = branches.begin(); cur != branches.end() and !limit(stats); cur++)
-        {
+        int nodeFailures = 0;
+        for (auto cur = branches.begin();
+            cur != branches.end() and !limit(stats) and nodeFailures < maxNodeFailures;
+            cur++)
+           {
             notifyNode();
             _sm->saveState();
             TRYFAIL
                     (*cur)();
-                    dfs_record(stats, limit);
+                    dfs_record(stats, limit, maxNodeFailures);
             ONFAIL
+                    nodeFailures += 1;
                     stats.incrFailures();
                     notifyFailure();
             ENDFAIL

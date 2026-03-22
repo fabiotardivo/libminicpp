@@ -114,7 +114,7 @@ class DFSearch {
     trail<int> _depth;
     int _peakDepth = 0;
     void dfs(SearchStatistics& stats,const Limit& limit);
-    void dfs_record(SearchStatistics& stats,const Limit& limit);
+    void dfs_record(SearchStatistics& stats,const Limit& limit, int maxNodeFailures);
 
 public:
    DFSearch(CPSolver::Ptr cp,std::function<Branches(void)>&& b)
