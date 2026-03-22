@@ -52,16 +52,17 @@ SearchStatistics DFSearch::solve(SearchStatistics& stats,Limit limit)
 void DFSearch::sample(bool & stop, Limit limit)
 {
     SearchStatistics stats;
-    onFailure([&](){stats.incrFailures();});
+    onFailure([&stats](){ stats.incrFailures(); });
 
     while (not stop)
     {
-        _sm->saveState();
         stats = SearchStatistics();
-        try {
-            dfs(stats, limit);
-        } catch(StopException&) {}
-        _sm->restoreState();
+        _sm->withNewState([this, &stats, &limit]()
+        {
+            try {
+                dfs(stats, limit);
+            } catch(StopException&) {}
+        });
     }
 }
 
