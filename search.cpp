@@ -48,17 +48,11 @@ SearchStatistics DFSearch::solve(SearchStatistics& stats,Limit limit)
                             }));
     return stats;
 }
-
 void DFSearch::sample(bool & stop, Limit limit)
 {
-    SearchStatistics stats;
-    onFailure([&stats](){ stats.incrFailures(); });
-
     while (not stop)
     {
-        stats = SearchStatistics();
-        std::cerr << "DEBUG: failures at start = " << stats.getFailures()
-                 << " limit=" << limit(stats) << std::endl;
+        SearchStatistics stats;
         _sm->withNewState(VVFun([this, &stats, &limit]()
         {
             try {
@@ -191,6 +185,7 @@ void DFSearch::dfs_record(SearchStatistics& stats,const Limit& limit)
                     (*cur)();
                     dfs_record(stats, limit);
             ONFAIL
+                    stats.incrFailures();
                     notifyFailure();
             ENDFAIL
             _sm->restoreState();
