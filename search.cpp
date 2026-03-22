@@ -167,37 +167,3 @@ void DFSearch::dfs(SearchStatistics& stats,const Limit& limit)
         }
     }
 }
-
-void DFSearch::dfs(SearchStatistics& stats,const Limit& limit)
-{
-    Branches branches = _branching();
-    if (branches.size() == 0)
-    {
-        TRYFAIL
-                notifySolution();
-        ONFAIL
-                notifyFailure();
-        ENDFAIL
-    }
-    else
-    {
-        _depth += 1;
-        _peakDepth = std::max(_depth.value(),_peakDepth);
-        notifyNode();
-        for (auto cur = branches.begin(); cur != branches.end() and !limit(stats); cur++)
-        {
-            _sm->saveState();
-            TRYFAIL
-                    (*cur)();
-            dfs(stats, limit);
-            ONFAIL
-                    notifyFailure();
-            ENDFAIL
-            _sm->restoreState();
-        }
-        if (limit(stats))
-        {
-            throw StopException();
-        }
-    }
-}
