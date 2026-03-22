@@ -54,18 +54,15 @@ void DFSearch::sample(bool & stop, Limit limit)
     SearchStatistics stats;
     onFailure([&](){stats.incrFailures();});
 
-    _sm->withNewState(VVFun([this, &stop, &limit, &stats]()
-        {
-            while (not stop)
-            {
-                _sm->saveState();
-                stats = SearchStatistics();
-                try {
-                    dfs(stats, limit);
-                } catch(StopException&) {}
-                _sm->restoreState();
-            }
-        }));
+    while (not stop)
+    {
+        _sm->saveState();
+        stats = SearchStatistics();
+        try {
+            dfs(stats, limit);
+        } catch(StopException&) {}
+        _sm->restoreState();
+    }
 }
 
 SearchStatistics DFSearch::solve(SearchStatistics& stats)
