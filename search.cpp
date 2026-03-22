@@ -49,14 +49,17 @@ SearchStatistics DFSearch::solve(SearchStatistics& stats,Limit limit)
     return stats;
 }
 
-void DFSearch::sample(bool & stop)
+void DFSearch::sample(bool & stop, Limit limit)
 {
-    _sm->withNewState(VVFun([this,&stop]()
+    _sm->withNewState(VVFun([this, &stop, &limit]()
         {
             while (not stop)
             {
                 _sm->saveState();
-                dfs_one_shot();
+                SearchStatistics stats;
+                try {
+                    dfs(stats, limit);
+                } catch(StopException&) {}
                 _sm->restoreState();
             }
         }));

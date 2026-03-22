@@ -133,7 +133,7 @@ public:
    void notifyFailure()  { for_each(_failureListeners.begin(),_failureListeners.end(),[](std::function<void(void)>& c) { c();});}
    int getPeakDepth()const  {return  _peakDepth;};
    SearchStatistics solve(SearchStatistics& stat, Limit limit);
-   void sample(bool & stop);
+   void sample(bool & stop, Limit limit);
    SearchStatistics solve(SearchStatistics& stat);
    SearchStatistics solve(Limit limit);
    SearchStatistics solve();
