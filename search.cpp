@@ -60,7 +60,7 @@ void DFSearch::sample(bool & stop, Limit limit)
         _sm->withNewState([this, &stats, &limit]()
         {
             try {
-                dfs(stats, limit);
+                dfs_record(stats, limit);
             } catch(StopException&) {}
         });
     }
@@ -152,6 +152,40 @@ void DFSearch::dfs(SearchStatistics& stats,const Limit& limit)
         {
             _sm->saveState();
             TRYFAIL
+                    (*cur)();
+                    dfs(stats, limit);
+            ONFAIL
+                    notifyFailure();
+            ENDFAIL
+            _sm->restoreState();
+        }
+        if (limit(stats))
+        {
+            throw StopException();
+        }
+    }
+}
+
+void DFSearch::dfs_record(SearchStatistics& stats,const Limit& limit)
+{
+    Branches branches = _branching();
+    if (branches.size() == 0)
+    {
+        TRYFAIL
+                notifySolution();
+        ONFAIL
+                notifyFailure();
+        ENDFAIL
+    }
+    else
+    {
+        _depth += 1;
+        _peakDepth = std::max(_depth.value(),_peakDepth);
+        for (auto cur = branches.begin(); cur != branches.end() and !limit(stats); cur++)
+        {
+            _sm->saveState();
+            TRYFAIL
+                    notifyNode();
                     (*cur)();
                     dfs(stats, limit);
             ONFAIL
