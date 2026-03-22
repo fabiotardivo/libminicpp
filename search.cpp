@@ -167,11 +167,7 @@ void DFSearch::dfs_record(SearchStatistics& stats,const Limit& limit)
     Branches branches = _branching();
     if (branches.size() == 0)
     {
-        TRYFAIL
-                notifySolution();
-        ONFAIL
-                notifyFailure();
-        ENDFAIL
+        notifySolution();
     }
     else
     {
@@ -179,9 +175,9 @@ void DFSearch::dfs_record(SearchStatistics& stats,const Limit& limit)
         _peakDepth = std::max(_depth.value(),_peakDepth);
         for (auto cur = branches.begin(); cur != branches.end() and !limit(stats); cur++)
         {
+            notifyNode();
             _sm->saveState();
             TRYFAIL
-                    notifyNode();
                     (*cur)();
                     dfs_record(stats, limit);
             ONFAIL
