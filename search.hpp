@@ -435,4 +435,138 @@ Branches indomain(CPSolver::Ptr cp, Var var)
 }
 
 
+// ── Probabilistic variable selection ─────────────────────────────────────
+// Each heuristic has a _prob variant that samples proportional to
+// weight^temperature instead of always picking the deterministic best.
+// T→0: deterministic (same as original)
+// T=1: proportional to weight
+// T→∞: uniform random
+
+// Helper: sample one variable from weighted distribution
+template<class Container, typename WeightFun>
+typename Container::value_type selectWeighted(Container const & c, WeightFun weightOf)
+{
+    std::vector<typename Container::value_type> candidates;
+    std::vector<double> weights;
+
+    for (auto const & var : c)
+    {
+        if (var->size() > 1)
+        {
+            double w = weightOf(var);
+            if (w > 0.0)
+            {
+                candidates.push_back(var);
+                weights.push_back(w);
+            }
+        }
+    }
+
+    if (candidates.empty())
+        return typename Container::value_type();
+
+    std::discrete_distribution<int> dist(weights.begin(), weights.end());
+    return candidates[dist(getVarRng())];
+}
+
+// first_fail_prob: weight = 1/size^T  (smaller domain → higher weight)
+template<class Vars, class Var>
+Var first_fail_prob(Vars const & vars, double temperature = 1.0)
+{
+    return selectWeighted(vars, [temperature](auto const & x) {
+        return 1.0 / std::pow((double)x->size(), temperature);
+    });
+}
+
+// smallest_prob: weight = 1/(min+1)^T  (smaller lower bound → higher weight)
+template<class Vars, class Var>
+Var smallest_prob(Vars const & vars, double temperature = 1.0)
+{
+    return selectWeighted(vars, [temperature](auto const & x) {
+        return 1.0 / std::pow((double)(x->min() + 1), temperature);
+    });
+}
+
+// largest_prob: weight = (max+1)^T  (larger upper bound → higher weight)
+template<class Vars, class Var>
+Var largest_prob(Vars const & vars, double temperature = 1.0)
+{
+    return selectWeighted(vars, [temperature](auto const & x) {
+        return std::pow((double)(x->max() + 1), temperature);
+    });
+}
+
+// input_order_prob: weight = 1/(position+1)^T  (earlier in list → higher weight)
+template<class Vars, class Var>
+Var input_order_prob(Vars const & vars, double temperature = 1.0)
+{
+    return selectWeighted(vars, [&vars, temperature](auto const & x) {
+        auto it = std::find(vars.begin(), vars.end(), x);
+        int pos = std::distance(vars.begin(), it);
+        return 1.0 / std::pow((double)(pos + 1), temperature);
+    });
+}
+
+// ── Probabilistic value selection ─────────────────────────────────────────
+
+// indomain_min_prob: weight = 1/(val-min+1)^T  (smaller values → higher weight)
+template <class Var>
+Branches indomain_min_prob(CPSolver::Ptr cp, Var var, double temperature = 1.0)
+{
+    using namespace Factory;
+    if (!var) return Branches({});
+
+    std::vector<int> vals;
+    std::vector<double> weights;
+    int vmin = var->min();
+
+    for (int val = var->min(); val <= var->max(); ++val)
+    {
+        if (var->contains(val))
+        {
+            vals.push_back(val);
+            double rank = (double)(val - vmin + 1);
+            weights.push_back(1.0 / std::pow(rank, temperature));
+        }
+    }
+
+    if (vals.empty()) return Branches({});
+
+    std::discrete_distribution<int> dist(weights.begin(), weights.end());
+    int val = vals[dist(getValRng())];
+
+    return [cp,var,val] { TRACE(std::cerr << "%% Choosing x" << var->getId() << " == "<< val << std::endl;) return cp->post(var == val);} |
+           [cp,var,val] { TRACE(std::cerr << "%% Choosing x" << var->getId() << " != "<< val << std::endl;) return cp->post(var != val);};
+}
+
+// indomain_max_prob: weight = (val-min+1)^T  (larger values → higher weight)
+template <class Var>
+Branches indomain_max_prob(CPSolver::Ptr cp, Var var, double temperature = 1.0)
+{
+    using namespace Factory;
+    if (!var) return Branches({});
+
+    std::vector<int> vals;
+    std::vector<double> weights;
+    int vmin = var->min();
+
+    for (int val = var->min(); val <= var->max(); ++val)
+    {
+        if (var->contains(val))
+        {
+            vals.push_back(val);
+            double rank = (double)(val - vmin + 1);
+            weights.push_back(std::pow(rank, temperature));
+        }
+    }
+
+    if (vals.empty()) return Branches({});
+
+    std::discrete_distribution<int> dist(weights.begin(), weights.end());
+    int val = vals[dist(getValRng())];
+
+    return [cp,var,val] {return cp->post(var == val);} |
+           [cp,var,val] {return cp->post(var != val);};
+}
+
 #endif
