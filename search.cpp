@@ -187,7 +187,7 @@ void DFSearch::dfs_record(SearchStatistics& stats,const Limit& limit)
             TRYFAIL
                     notifyNode();
                     (*cur)();
-                    dfs(stats, limit);
+                    dfs_record(stats, limit);
             ONFAIL
                     notifyFailure();
             ENDFAIL
