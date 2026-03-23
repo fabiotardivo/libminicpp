@@ -64,7 +64,7 @@ int main(int argc,char* argv[])
 
     // Initialize statistics
     SearchStatistics stats;
-    search.onBranch([&](){ stats.incrNodes();});
+    search.onNode([&](){ stats.incrNodes();});
     search.onFailure([&](){stats.incrFailures();});
     search.onSolution([&](){stats.incrSolutions();});
 

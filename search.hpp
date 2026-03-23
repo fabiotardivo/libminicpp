@@ -110,11 +110,11 @@ class DFSearch {
     std::function<Branches(void)>   _branching;
     std::vector<std::function<void(void)>>    _solutionListeners;
     std::vector<std::function<void(void)>>    _nodeListeners;
+    std::vector<std::function<void(void)>>    _branchListeners;
     std::vector<std::function<void(void)>>    _failureListeners;
     trail<int> _depth;
     int _peakDepth = 0;
     void dfs(SearchStatistics& stats,const Limit& limit);
-    void dfs_record(SearchStatistics& stats,const Limit& limit, int maxNodeFailures);
 
 public:
    DFSearch(CPSolver::Ptr cp,std::function<Branches(void)>&& b)
@@ -126,10 +126,12 @@ public:
       _sm->enable();
    }
    template <class B> void onSolution(B c) { _solutionListeners.emplace_back(std::move(c));}
-   template <class B> void onBranch(B c)  { _nodeListeners.emplace_back(std::move(c));}
+   template <class B> void onNode(B c)  { _nodeListeners.emplace_back(std::move(c));}
+   template <class B> void onBranch(B c)  { _branchListeners.emplace_back(std::move(c));}
    template <class B> void onFailure(B c)  { _failureListeners.emplace_back(std::move(c));}
    void notifySolution() { for_each(_solutionListeners.begin(),_solutionListeners.end(),[](std::function<void(void)>& c) { c();});}
    void notifyNode()  { for_each(_nodeListeners.begin(), _nodeListeners.end(), [](std::function<void(void)>& c) { c();});}
+   void notifyBranch()  { for_each(_branchListeners.begin(), _branchListeners.end(), [](std::function<void(void)>& c) { c();});}
    void notifyFailure()  { for_each(_failureListeners.begin(),_failureListeners.end(),[](std::function<void(void)>& c) { c();});}
    int getPeakDepth()const  {return  _peakDepth;};
    SearchStatistics solve(SearchStatistics& stat, Limit limit);
