@@ -48,19 +48,6 @@ SearchStatistics DFSearch::solve(SearchStatistics& stats,Limit limit)
                             }));
     return stats;
 }
-void DFSearch::sample(bool & stop, Limit limit, int maxNodeFailures)
-{
-    while (not stop)
-    {
-        SearchStatistics stats;
-        _sm->withNewState(VVFun([this, &stats, &limit, maxNodeFailures]()
-        {
-            try {
-                dfs_record(stats, limit, maxNodeFailures);
-            } catch(StopException&) {}
-        }));
-    }
-}
 
 SearchStatistics DFSearch::solve(SearchStatistics& stats)
 {
