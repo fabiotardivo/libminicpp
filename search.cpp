@@ -48,6 +48,24 @@ SearchStatistics DFSearch::solve(SearchStatistics& stats,Limit limit)
                             }));
     return stats;
 }
+void DFSearch::sample(bool & stop, Limit limit)
+{
+    SearchStatistics stats;
+    auto const limitDive = [this, &limit](SearchStatistics const & stats){
+        return stats.getFailures() > 0 or limit(stats);
+    };
+    while (not stop)
+    {
+
+        _sm->withNewState(VVFun([this, &stats, &limit, & limitDive]()
+        {
+            try {
+                dfs(stats, limitDive);
+                dfs(stats, limit);
+            } catch(StopException&) {}
+        }));
+    }
+}
 
 SearchStatistics DFSearch::solve(SearchStatistics& stats)
 {
@@ -135,7 +153,7 @@ void DFSearch::dfs(SearchStatistics& stats,const Limit& limit)
         {
             _sm->saveState();
             TRYFAIL
-                    notifyBranch();
+                    notifyNode();
                     (*cur)();
                     dfs(stats, limit);
             ONFAIL
